@@ -15,142 +15,52 @@ class FlightApp {
         this.setDefaultDate();
     }
 
-    // Load airport data from free API
+    // Load airport data from local real-time API
     async loadAirports() {
         try {
-            // Using a free airport database API
-            console.log('Loading airports from API...');
-            
-            // Primary free airport API
-            const response = await fetch('https://raw.githubusercontent.com/hpo/airport-codes/master/airports.json');
-            
+            console.log('Loading airports from local API...');
+            const response = await fetch('/flightlo/api/airports?limit=200');
             if (response.ok) {
                 const data = await response.json();
-                this.airports = data.slice(0, 100).map(airport => ({
-                    code: airport.iata,
+                this.airports = (data.airports || []).map(airport => ({
+                    code: airport.code,
                     name: airport.name,
                     city: airport.city,
-                    country: airport.country || airport.state
+                    country: airport.country
                 })).filter(airport => airport.code && airport.name);
-                
-                console.log(`Loaded ${this.airports.length} airports from API`);
+                console.log(`Loaded ${this.airports.length} airports from local API`);
             } else {
-                throw new Error('Primary API failed');
+                throw new Error('Local airport API failed');
             }
         } catch (error) {
-            console.log('Airport API failed, using backup data...');
-            // Fallback to local data if API fails
-            this.airports = await this.getBackupAirports();
+            console.log('Airport API failed, no fallback.');
+            this.airports = [];
         }
     }
 
-    // Backup airport data
-    async getBackupAirports() {
-        return [
-            { code: 'JFK', name: 'John F. Kennedy International Airport', city: 'New York', country: 'United States' },
-            { code: 'LAX', name: 'Los Angeles International Airport', city: 'Los Angeles', country: 'United States' },
-            { code: 'LHR', name: 'London Heathrow Airport', city: 'London', country: 'United Kingdom' },
-            { code: 'CDG', name: 'Charles de Gaulle Airport', city: 'Paris', country: 'France' },
-            { code: 'DXB', name: 'Dubai International Airport', city: 'Dubai', country: 'United Arab Emirates' },
-            { code: 'NRT', name: 'Narita International Airport', city: 'Tokyo', country: 'Japan' },
-            { code: 'SIN', name: 'Singapore Changi Airport', city: 'Singapore', country: 'Singapore' },
-            { code: 'FRA', name: 'Frankfurt Airport', city: 'Frankfurt', country: 'Germany' },
-            { code: 'AMS', name: 'Amsterdam Airport Schiphol', city: 'Amsterdam', country: 'Netherlands' },
-            { code: 'HKG', name: 'Hong Kong International Airport', city: 'Hong Kong', country: 'Hong Kong' },
-            { code: 'SYD', name: 'Sydney Kingsford Smith Airport', city: 'Sydney', country: 'Australia' },
-            { code: 'YYZ', name: 'Toronto Pearson International Airport', city: 'Toronto', country: 'Canada' },
-            { code: 'GRU', name: 'São Paulo–Guarulhos International Airport', city: 'São Paulo', country: 'Brazil' },
-            { code: 'ICN', name: 'Incheon International Airport', city: 'Seoul', country: 'South Korea' },
-            { code: 'BOM', name: 'Chhatrapati Shivaji Maharaj International Airport', city: 'Mumbai', country: 'India' },
-            { code: 'DEL', name: 'Indira Gandhi International Airport', city: 'Delhi', country: 'India' },
-            { code: 'PEK', name: 'Beijing Capital International Airport', city: 'Beijing', country: 'China' },
-            { code: 'SVO', name: 'Sheremetyevo International Airport', city: 'Moscow', country: 'Russia' },
-            { code: 'IST', name: 'Istanbul Airport', city: 'Istanbul', country: 'Turkey' },
-            { code: 'DOH', name: 'Hamad International Airport', city: 'Doha', country: 'Qatar' },
-            { code: 'ORD', name: 'O\'Hare International Airport', city: 'Chicago', country: 'United States' },
-            { code: 'ATL', name: 'Hartsfield-Jackson Atlanta International Airport', city: 'Atlanta', country: 'United States' },
-            { code: 'DFW', name: 'Dallas/Fort Worth International Airport', city: 'Dallas', country: 'United States' },
-            { code: 'DEN', name: 'Denver International Airport', city: 'Denver', country: 'United States' },
-            { code: 'LAS', name: 'McCarran International Airport', city: 'Las Vegas', country: 'United States' },
-            { code: 'MIA', name: 'Miami International Airport', city: 'Miami', country: 'United States' },
-            { code: 'SEA', name: 'Seattle-Tacoma International Airport', city: 'Seattle', country: 'United States' },
-            { code: 'SFO', name: 'San Francisco International Airport', city: 'San Francisco', country: 'United States' },
-            { code: 'BOS', name: 'Logan International Airport', city: 'Boston', country: 'United States' },
-            { code: 'LGW', name: 'Gatwick Airport', city: 'London', country: 'United Kingdom' },
-            { code: 'MUC', name: 'Munich Airport', city: 'Munich', country: 'Germany' },
-            { code: 'ZUR', name: 'Zurich Airport', city: 'Zurich', country: 'Switzerland' },
-            { code: 'VIE', name: 'Vienna International Airport', city: 'Vienna', country: 'Austria' },
-            { code: 'ARN', name: 'Stockholm Arlanda Airport', city: 'Stockholm', country: 'Sweden' },
-            { code: 'CPH', name: 'Copenhagen Airport', city: 'Copenhagen', country: 'Denmark' }
-        ];
-    }
-
-    // Load airline data from free API
+    // Load airline data from local real-time API
     async loadAirlines() {
         try {
-            console.log('Loading airlines from API...');
-            
-            // Using airline data from OpenFlights
-            const response = await fetch('https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat');
-            
+            console.log('Loading airlines from local API...');
+            const response = await fetch('/flightlo/api/airlines?limit=100');
             if (response.ok) {
-                const data = await response.text();
-                const lines = data.split('\n').filter(line => line.trim());
-                
-                this.airlines = [];
-                const seenCodes = new Set();
-                
-                lines.forEach(line => {
-                    const parts = line.split(',');
-                    if (parts.length >= 4) {
-                        const code = parts[3].replace(/"/g, '');
-                        const name = parts[1].replace(/"/g, '');
-                        
-                        if (code && name && code.length === 2 && !seenCodes.has(code)) {
-                            this.airlines.push({ code, name });
-                            seenCodes.add(code);
-                        }
-                    }
-                });
-                
-                // Sort and limit to top airlines
-                this.airlines = this.airlines
-                    .filter(airline => airline.name.length > 3)
-                    .slice(0, 50)
-                    .sort((a, b) => a.name.localeCompare(b.name));
-                
-                console.log(`Loaded ${this.airlines.length} airlines from API`);
+                const data = await response.json();
+                this.airlines = (data.airlines || []).map(airline => ({
+                    code: airline.code,
+                    name: airline.name
+                })).filter(airline => airline.code && airline.name);
+                this.airlines = this.airlines.slice(0, 50).sort((a, b) => a.name.localeCompare(b.name));
+                console.log(`Loaded ${this.airlines.length} airlines from local API`);
             } else {
-                throw new Error('Airline API failed');
+                throw new Error('Local airline API failed');
             }
         } catch (error) {
-            console.log('Airline API failed, using backup data...');
-            this.airlines = [
-                { code: 'AA', name: 'American Airlines' },
-                { code: 'DL', name: 'Delta Air Lines' },
-                { code: 'UA', name: 'United Airlines' },
-                { code: 'BA', name: 'British Airways' },
-                { code: 'LH', name: 'Lufthansa' },
-                { code: 'AF', name: 'Air France' },
-                { code: 'KL', name: 'KLM Royal Dutch Airlines' },
-                { code: 'EK', name: 'Emirates' },
-                { code: 'QR', name: 'Qatar Airways' },
-                { code: 'SQ', name: 'Singapore Airlines' },
-                { code: 'CX', name: 'Cathay Pacific' },
-                { code: 'JL', name: 'Japan Airlines' },
-                { code: 'NH', name: 'All Nippon Airways' },
-                { code: 'TK', name: 'Turkish Airlines' },
-                { code: 'SU', name: 'Aeroflot' },
-                { code: 'AI', name: 'Air India' },
-                { code: 'ET', name: 'Ethiopian Airlines' },
-                { code: 'VS', name: 'Virgin Atlantic' },
-                { code: 'AC', name: 'Air Canada' },
-                { code: 'QF', name: 'Qantas' }
-            ];
+            console.log('Airline API failed, no fallback.');
+            this.airlines = [];
         }
-
         // Populate airline dropdown
         const airlineSelect = document.getElementById('airline');
+        airlineSelect.innerHTML = '';
         this.airlines.forEach(airline => {
             const option = document.createElement('option');
             option.value = airline.code;
@@ -259,17 +169,22 @@ class FlightApp {
     // Generate realistic flight data using APIs
     async generateFlightData(departure, arrival, date) {
         try {
-            console.log('Fetching real flight data...');
-            
-            // Try to get real flight data from multiple free APIs
-            const flights = await this.fetchRealFlightData(departure, arrival, date);
-            
-            if (flights && flights.length > 0) {
-                return flights;
-            } else {
-                // Fallback to enhanced simulation with real data patterns
-                return this.generateEnhancedFlightData(departure, arrival, date);
+            console.log('Fetching real flight data from local API...');
+            // Use local real-time API for flight search
+            const params = new URLSearchParams({
+                origin: departure.split(' - ')[0],
+                destination: arrival.split(' - ')[0],
+                date
+            });
+            const response = await fetch(`/flightlo/api/flights/search?${params.toString()}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.flights && data.flights.length > 0) {
+                    return data.flights;
+                }
             }
+            // Fallback to enhanced simulation if no real data
+            return this.generateEnhancedFlightData(departure, arrival, date);
         } catch (error) {
             console.log('Real flight API failed, using enhanced simulation...');
             return this.generateEnhancedFlightData(departure, arrival, date);
