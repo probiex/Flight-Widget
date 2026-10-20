@@ -1,0 +1,217 @@
+"use client"
+
+import { useState } from "react"
+import FlightSearch from "@/components/FlightSearch"
+import FlightResults from "@/components/FlightResults"
+import AirportInfo from "@/components/AirportInfo"
+import Header from "@/components/Header"
+import Footer from "@/components/Footer"
+import { Flight, Airport } from "@/types"
+
+export default function FlightTracker() {
+  const [flights, setFlights] = useState<Flight[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [flightError, setFlightError] = useState<string>("")
+  
+  const [airport, setAirport] = useState<Airport | null>(null)
+  const [departures, setDepartures] = useState<Flight[]>([])
+  const [currentView, setCurrentView] = useState<'search' | 'results' | 'airport'>('search')
+
+  const handleFlightResults = (newFlights: Flight[]) => {
+    setFlights(newFlights)
+    setFlightError("")
+    setCurrentView('results')
+  }
+
+  const handleAirportInfo = (airportData: Airport, departureFlights: Flight[]) => {
+    setAirport(airportData)
+    setDepartures(departureFlights)
+    setCurrentView('airport')
+  }
+
+  const handleSearchStateChange = (searching: boolean) => {
+    setIsSearching(searching)
+    if (searching) {
+      setFlightError("")
+    }
+  }
+
+  const handleBackToSearch = () => {
+    setCurrentView('search')
+    setFlights([])
+    setAirport(null)
+    setDepartures([])
+    setFlightError("")
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <Header />
+      
+      <main className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="space-y-8">
+          {/* Search Interface - Always visible */}
+          <FlightSearch 
+            onFlightResults={handleFlightResults}
+            onAirportInfo={handleAirportInfo}
+            onSearchStateChange={handleSearchStateChange}
+          />
+
+          {/* Results Display */}
+          {currentView === 'results' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Search Results</h2>
+                <button
+                  onClick={handleBackToSearch}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  ← New Search
+                </button>
+              </div>
+              <FlightResults 
+                flights={flights}
+                isLoading={isSearching}
+                error={flightError}
+              />
+            </div>
+          )}
+
+          {/* Airport Information Display */}
+          {currentView === 'airport' && airport && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Airport Information</h2>
+                <button
+                  onClick={handleBackToSearch}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  ← New Search
+                </button>
+              </div>
+              <AirportInfo 
+                airport={airport}
+                departures={departures}
+                isLoading={isSearching}
+              />
+            </div>
+          )}
+
+          {/* Welcome/Getting Started Message */}
+          {currentView === 'search' && !isSearching && (
+            <div className="text-center py-12 space-y-4">
+              <div className="text-6xl mb-4">✈️</div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Welcome to Flight Tracker Pro
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Your comprehensive flight tracking solution with real-time data from multiple sources. 
+                Search flights by route, airline, or get detailed airport information with live departures.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8 max-w-4xl mx-auto">
+                <div className="p-6 bg-white rounded-lg shadow-sm border">
+                  <div className="text-2xl mb-3">🗺️</div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Route Search</h3>
+                  <p className="text-sm text-gray-600">
+                    Find flights between specific airports with detailed route information
+                  </p>
+                </div>
+                <div className="p-6 bg-white rounded-lg shadow-sm border">
+                  <div className="text-2xl mb-3">✈️</div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Airline Search</h3>
+                  <p className="text-sm text-gray-600">
+                    Browse flights by specific airlines with real-time status updates
+                  </p>
+                </div>
+                <div className="p-6 bg-white rounded-lg shadow-sm border">
+                  <div className="text-2xl mb-3">🏢</div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Airport Info</h3>
+                  <p className="text-sm text-gray-600">
+                    Get comprehensive airport details and live departure information
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  )
+}
+    setIsSearchingAirport(true)
+    setAirportError("")
+    setAirport(null)
+    setDepartures([])
+
+    try {
+      const response = await fetch(`/api/airports?code=${encodeURIComponent(iataCode)}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Airport not found")
+      }
+
+      setAirport(data.airport)
+      setDepartures(data.departures || [])
+    } catch (error) {
+      console.error("Airport search error:", error)
+      setAirportError(error instanceof Error ? error.message : "Failed to find airport information")
+    } finally {
+      setIsSearchingAirport(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <Header />
+      
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Real-Time Flight Tracking
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Search for flights by route, airline, or country. Get detailed airport information 
+              and live departure times from multiple aviation data sources.
+            </p>
+          </div>
+
+          <Tabs defaultValue="flights" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="flights">Flight Search</TabsTrigger>
+              <TabsTrigger value="airports">Airport Info</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="flights" className="space-y-6">
+              <FlightSearch 
+                onSearch={handleFlightSearch} 
+                isLoading={isSearchingFlights}
+              />
+              
+              <FlightResults 
+                flights={flights}
+                isLoading={isSearchingFlights}
+                error={flightError}
+              />
+            </TabsContent>
+            
+            <TabsContent value="airports" className="space-y-6">
+              <AirportInfo
+                onSearch={handleAirportSearch}
+                isLoading={isSearchingAirport}
+                airport={airport}
+                departures={departures}
+                error={airportError}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+      
+      <Footer />
+    </div>
+  )
+}

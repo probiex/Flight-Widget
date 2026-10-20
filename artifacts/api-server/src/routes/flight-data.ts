@@ -34,6 +34,7 @@ type AirlineRecord = {
 
 type CacheEntry<T> = {
   expiresAt: number;
+  fetchedAt?: Date;
   value?: T;
   pending?: Promise<T>;
 };
@@ -46,9 +47,9 @@ const AIRLINE_SOURCE =
 const AIRPORT_ATTRIBUTION =
   "Airport reference data: OurAirports. This directory is not an operational flight feed.";
 const AIRLINE_ATTRIBUTION =
-  "Airline reference data: OpenFlights. Records reflect the source dataset and may not include recent changes.";
+  "OpenFlights airline reference snapshot (published January 2012). Codes and operating status may be outdated; this is not a live carrier directory.";
 const WEATHER_ATTRIBUTION = "Weather: Open-Meteo";
-const FLIGHT_ATTRIBUTION = "Flight status and schedules: Aviationstack";
+const FLIGHT_ATTRIBUTION = "Aviationstack: up to 100 provider records per lookup, not a complete airport schedule. Confirm operational details with the airline.";
 const airportCache: CacheEntry<AirportRecord[]> = { expiresAt: 0 };
 const airlineCache: CacheEntry<AirlineRecord[]> = { expiresAt: 0 };
 const weatherCache = new Map<string, CacheEntry<unknown>>();
@@ -93,6 +94,7 @@ async function cachedValue<T>(
   entry.pending = load()
     .then((value) => {
       entry.value = value;
+      entry.fetchedAt = new Date();
       entry.expiresAt = Date.now() + ttlMs;
       return value;
     })
@@ -222,7 +224,7 @@ router.get("/airports", async (req, res): Promise<void> => {
       ListAirportsResponse.parse({
         airports,
         source: "OurAirports",
-        fetchedAt: new Date(),
+        fetchedAt: airportCache.fetchedAt,
         attribution: AIRPORT_ATTRIBUTION,
       }),
     );
@@ -274,7 +276,7 @@ router.get("/airlines", async (req, res): Promise<void> => {
       ListAirlinesResponse.parse({
         airlines,
         source: "OpenFlights",
-        fetchedAt: new Date(),
+        fetchedAt: airlineCache.fetchedAt,
         attribution: AIRLINE_ATTRIBUTION,
       }),
     );
@@ -295,6 +297,7 @@ router.get("/weather", async (req, res): Promise<void> => {
   const cacheKey = `${latitude.toFixed(3)},${longitude.toFixed(3)},${timezone ?? "auto"}`;
   const entry = weatherCache.get(cacheKey) as CacheEntry<ReturnType<typeof mapWeather>> | undefined;
   const currentEntry = entry ?? { expiresAt: 0 };
+  if (!entry && weatherCache.size >= 256) weatherCache.delete(weatherCache.keys().next().value!);
   weatherCache.set(cacheKey, currentEntry);
 
   try {
@@ -378,9 +381,16 @@ router.get("/flights", async (req, res): Promise<void> => {
   }
 
   const { origin, destination, date } = query.data;
+  const requestedDate = date?.toISOString().slice(0, 10);
+  const currentDate = new Date().toISOString().slice(0, 10);
+  if (requestedDate && requestedDate > currentDate) {
+    res.status(400).json(parseError("Future schedules are not supported by this flight-status endpoint."));
+    return;
+  }
   const cacheKey = `${origin.toUpperCase()}:${destination?.toUpperCase() ?? ""}:${date ?? "today"}`;
   const entry = flightCache.get(cacheKey) as CacheEntry<ReturnType<typeof mapFlights>> | undefined;
   const currentEntry = entry ?? { expiresAt: 0 };
+  if (!entry && flightCache.size >= 256) flightCache.delete(flightCache.keys().next().value!);
   flightCache.set(cacheKey, currentEntry);
 
   try {
@@ -391,7 +401,8 @@ router.get("/flights", async (req, res): Promise<void> => {
         limit: "100",
       });
       if (destination) params.set("arr_iata", destination.toUpperCase());
-      if (date) params.set("flight_date", date.toISOString().slice(0, 10));
+      // Today's live endpoint does not need the historical-data filter.
+      if (requestedDate && requestedDate !== currentDate) params.set("flight_date", requestedDate);
 
       const response = await fetch(
         `https://api.aviationstack.com/v1/flights?${params.toString()}`,
@@ -408,7 +419,7 @@ router.get("/flights", async (req, res): Promise<void> => {
       SearchFlightsResponse.parse({
         flights: result,
         source: "Aviationstack",
-        fetchedAt: new Date(),
+        fetchedAt: currentEntry.fetchedAt,
         attribution: FLIGHT_ATTRIBUTION,
       }),
     );

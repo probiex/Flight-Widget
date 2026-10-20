@@ -1,0 +1,381 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: airports
+    description: Airport reference information
+  - name: airlines
+    description: Airline reference information
+  - name: weather
+    description: Current airport-area weather
+  - name: flights
+    description: Verified flight status and schedule data
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /airports:
+    get:
+      operationId: listAirports
+      tags: [airports]
+      summary: Search airport reference data
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matching airport reference records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AirportSearchResponse"
+        "503":
+          description: Airport reference data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /airports/{code}:
+    get:
+      operationId: getAirport
+      tags: [airports]
+      summary: Get an airport by IATA code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+      responses:
+        "200":
+          description: Airport reference record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Airport"
+        "404":
+          description: Airport not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Airport reference data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /airlines:
+    get:
+      operationId: listAirlines
+      tags: [airlines]
+      summary: Search airline reference data
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matching airline reference records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AirlineSearchResponse"
+        "503":
+          description: Airline reference data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /weather:
+    get:
+      operationId: getAirportWeather
+      tags: [weather]
+      summary: Get current weather for airport coordinates
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - name: timezone
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current weather observations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AirportWeather"
+        "503":
+          description: Weather data is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /flights:
+    get:
+      operationId: searchFlights
+      tags: [flights]
+      summary: Search verified flight records
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+        - name: destination
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Flight records returned by the configured flight data provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlightSearchResponse"
+        "503":
+          description: Flight data provider is unavailable or not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    Airport:
+      type: object
+      properties:
+        code:
+          type: string
+        icao:
+          type: ["string", "null"]
+        name:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        timezone:
+          type: ["string", "null"]
+        type:
+          type: string
+      required: [code, name, city, country, latitude, longitude, type]
+    AirportSearchResponse:
+      type: object
+      properties:
+        airports:
+          type: array
+          items:
+            $ref: "#/components/schemas/Airport"
+        source:
+          type: string
+        fetchedAt:
+          type: string
+          format: date-time
+        attribution:
+          type: string
+      required: [airports, source, fetchedAt, attribution]
+    Airline:
+      type: object
+      properties:
+        code:
+          type: string
+        icao:
+          type: ["string", "null"]
+        name:
+          type: string
+        country:
+          type: ["string", "null"]
+      required: [code, name]
+    AirlineSearchResponse:
+      type: object
+      properties:
+        airlines:
+          type: array
+          items:
+            $ref: "#/components/schemas/Airline"
+        source:
+          type: string
+        fetchedAt:
+          type: string
+          format: date-time
+        attribution:
+          type: string
+      required: [airlines, source, fetchedAt, attribution]
+    AirportWeather:
+      type: object
+      properties:
+        temperatureC:
+          type: number
+        feelsLikeC:
+          type: number
+        humidityPercent:
+          type: integer
+        precipitationMm:
+          type: number
+        weatherCode:
+          type: integer
+        windSpeedKmh:
+          type: number
+        timezone:
+          type: string
+        fetchedAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+      required:
+        - temperatureC
+        - feelsLikeC
+        - humidityPercent
+        - precipitationMm
+        - weatherCode
+        - windSpeedKmh
+        - timezone
+        - fetchedAt
+        - source
+    Flight:
+      type: object
+      properties:
+        id:
+          type: string
+        flightNumber:
+          type: ["string", "null"]
+        airlineIata:
+          type: ["string", "null"]
+        airlineName:
+          type: ["string", "null"]
+        originCode:
+          type: ["string", "null"]
+        originAirport:
+          type: ["string", "null"]
+        destinationCode:
+          type: ["string", "null"]
+        destinationAirport:
+          type: ["string", "null"]
+        scheduledDeparture:
+          type: ["string", "null"]
+          format: date-time
+        estimatedDeparture:
+          type: ["string", "null"]
+          format: date-time
+        actualDeparture:
+          type: ["string", "null"]
+          format: date-time
+        scheduledArrival:
+          type: ["string", "null"]
+          format: date-time
+        estimatedArrival:
+          type: ["string", "null"]
+          format: date-time
+        actualArrival:
+          type: ["string", "null"]
+          format: date-time
+        status:
+          type: ["string", "null"]
+        terminal:
+          type: ["string", "null"]
+        gate:
+          type: ["string", "null"]
+        aircraft:
+          type: ["string", "null"]
+      required: [id]
+    FlightSearchResponse:
+      type: object
+      properties:
+        flights:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flight"
+        source:
+          type: string
+        fetchedAt:
+          type: string
+          format: date-time
+        attribution:
+          type: string
+      required: [flights, source, fetchedAt, attribution]
+

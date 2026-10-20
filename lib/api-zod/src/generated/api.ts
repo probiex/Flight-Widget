@@ -143,7 +143,7 @@ export const searchFlightsQueryDestinationMax = 3;
 export const SearchFlightsQueryParams = zod.object({
   "origin": zod.coerce.string().min(searchFlightsQueryOriginMin).max(searchFlightsQueryOriginMax),
   "destination": zod.coerce.string().min(searchFlightsQueryDestinationMin).max(searchFlightsQueryDestinationMax).optional(),
-  "date": zod.date().optional()
+  "date": zod.coerce.date().optional()
 })
 
 export const SearchFlightsResponse = zod.object({

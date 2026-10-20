@@ -1,0 +1,73 @@
+name: Autonomous AI Patch Loop
+
+on:
+  pull_request:
+    branches: [main]
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  ai_generate_patch:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AI Agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python generate_patch.py
+
+  issue_to_pr:
+    if: >
+      github.event_name == 'issues' &&
+      (
+        contains(join(github.event.issue.labels.*.name, ','), 'feature') ||
+        contains(join(github.event.issue.labels.*.name, ','), 'bug')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AI Agent (Create PR)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python generate_patch.py  # You may want a separate script to create PR from issues
+
+  feedback_loop:
+    if: |
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'changes_requested') ||
+      (github.event_name == 'issue_comment' && github.event.comment.body == 'retry')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AI Agent for Rework
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python generate_patch.py
+
+  approval:
+    needs: [ai_generate_patch, issue_to_pr, feedback_loop]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: your-username
+          issue-title: "Approve AI Patch"
+          issue-body: "Please approve the changes."
+
+  cross_repo_build:
+    needs: approval
+    uses: <org>/<central-build-workflow>/.github/workflows/build-chain.yml@main
+    with:
+      definition-file: https://path/to/your/definition.yaml

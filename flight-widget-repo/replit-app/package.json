@@ -1,0 +1,17 @@
+{
+  "name": "flightlo-real-data",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:api": "PORT=3001 pnpm --filter @workspace/api-server dev",
+    "dev:web": "PORT=3000 BASE_PATH=/ API_PROXY_TARGET=http://127.0.0.1:3001 pnpm --filter @workspace/flight-widget dev",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm --filter @workspace/api-server typecheck && pnpm --filter @workspace/flight-widget typecheck",
+    "build": "pnpm typecheck && pnpm --filter @workspace/api-server build && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/flight-widget build",
+    "start": "SERVE_WEB=true PORT=${PORT:-3000} pnpm --filter @workspace/api-server start"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

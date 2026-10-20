@@ -10,7 +10,7 @@ import NotFound from '@/pages/not-found';
 import { ArrowDownUp, ArrowRight, ArrowUpRight, Building2, ChevronRight, Clock3, CloudSun, Compass, Globe2, MapPin, Plane, Search, Wind, X } from 'lucide-react';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60_000, refetchOnWindowFocus: false } } });
 const today = () => new Date().toISOString().slice(0, 10);
 
 function useTitle(title: string) {
@@ -32,7 +32,7 @@ function Shell({ children }: { children: ReactNode }) {
           <span className="font-display text-[21px] font-extrabold tracking-[-.07em]">flightlo<span className="text-accent">.</span></span>
         </Link>
         <nav aria-label="Main navigation" className="flex items-center gap-1 sm:gap-2">
-          {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`} className={`focus-ring flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold transition-colors sm:px-4 ${location === href || (href !== '/' && location.startsWith(href)) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon size={15} /><span>{label}</span></Link>)}
+          {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-label={label} title={label} data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`} className={`focus-ring flex items-center gap-2 rounded-full px-3 py-3 text-[13px] font-semibold transition-colors sm:px-4 ${location === href || (href !== '/' && location.startsWith(href)) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon size={15} /><span className="hidden sm:inline">{label}</span></Link>)}
         </nav>
         <div className="hidden items-center gap-2 text-[11px] font-medium uppercase tracking-[.14em] text-muted-foreground md:flex"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> Independent travel, clearly</div>
       </div>
@@ -79,7 +79,7 @@ function providerErrorTitle(error: unknown, fallback: string) {
 
 function Attribution({ source, attribution, fetchedAt }: { source?: string; attribution?: string; fetchedAt?: string }) {
   if (!source && !attribution) return null;
-  return <div className="mt-4 border-t border-border/70 pt-3 text-[10px] leading-relaxed text-muted-foreground">Source: {attribution || source}{source && attribution && source !== attribution ? ` · ${source}` : ''}{fetchedAt ? ` · Updated ${new Date(fetchedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}</div>;
+  return <div className="mt-4 border-t border-border/70 pt-3 text-[10px] leading-relaxed text-muted-foreground">Source: {attribution || source}{fetchedAt ? ` · Retrieved ${new Date(fetchedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}{source === 'Aviationstack' ? ' · Flight times are shown in your device’s timezone.' : ''}</div>;
 }
 
 function FlightRow({ flight }: { flight: Flight }) {
@@ -114,7 +114,7 @@ function HomePage() {
     setSubmitted(next);
     setRecent(previous => {
       const items = [code, ...previous.filter(item => item !== code)].slice(0, 4);
-      localStorage.setItem('flightlo-recent', JSON.stringify(items));
+      try { localStorage.setItem('flightlo-recent', JSON.stringify(items)); } catch { /* Storage can be disabled by browser policy. */ }
       return items;
     });
   }
@@ -234,6 +234,7 @@ function AirlinesPage() {
   const response = query.data;
   return <div className="page-enter">
     <Eyebrow>Reference / 02</Eyebrow><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><h1 className="font-display text-[42px] font-extrabold tracking-[-.065em] sm:text-[54px]">Airline index<span className="text-accent">.</span></h1><p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">A practical carrier reference. Search airline names and codes from verified external data.</p></div><div className="font-mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">Directory / Search</div></div>
+    <p role="note" className="mt-5 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">Historical reference only: OpenFlights publishes this airline dataset as a January 2012 snapshot. Codes and operating status may be outdated. Do not use it to confirm current service.</p>
     <div className="mt-8 flex max-w-[680px] items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 focus-within:border-primary/60"><Search size={17} className="shrink-0 text-muted-foreground" /><input type="search" aria-label="Search airlines" data-testid="input-airline-search" placeholder="Search airline or code" value={search} onChange={e => setSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65" />{search && <button aria-label="Clear airline search" onClick={() => setSearch('')} className="focus-ring rounded p-1 text-muted-foreground hover:text-foreground" data-testid="button-clear-airline-search"><X size={15} /></button>}</div>
     <div className="mt-8">
       {query.isLoading ? <LoadingRows /> : query.isError ? <ProviderUnavailable title={providerErrorTitle(query.error, 'Airline reference data is unavailable.')} retry={() => query.refetch()} /> : response ? <>

@@ -1,0 +1,2 @@
+- [Flightlo data requirements](flightlo-data.md) — only externally sourced records; advertising is a later goal, not permission to use non-commercial data commercially.
+- [GitHub working copies](git-working-copies.md) — keep external repository Git metadata outside the workspace; nested metadata disappeared during checkpoints.

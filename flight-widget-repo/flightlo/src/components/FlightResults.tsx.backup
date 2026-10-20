@@ -1,0 +1,601 @@
+"use client"
+
+import React, { useState, useMemo } from "react"
+import { formatDistance } from "date-fns"
+import { 
+  Plane, 
+  Clock, 
+  MapPin, 
+  Navigation, 
+  Wifi, 
+  WifiOff, 
+  ArrowRight, 
+  DollarSign,
+  Filter,
+  SortAsc,
+  Calendar,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Flight } from "@/types"
+
+interface FlightResultsProps {
+  flights: Flight[]
+  isLoading: boolean
+  error?: string
+}
+
+export default function FlightResults({ flights, isLoading, error }: FlightResultsProps) {
+  const [sortBy, setSortBy] = useState<'time' | 'price' | 'duration' | 'status'>('time')
+  const [filterBy, setFilterBy] = useState<'all' | 'active' | 'scheduled' | 'landed'>('all')
+
+  // Sort and filter flights
+  const processedFlights = useMemo(() => {
+    let filtered = flights
+
+    // Apply filter
+    if (filterBy !== 'all') {
+      filtered = filtered.filter(flight => {
+        const status = flight.status?.toLowerCase()
+        switch (filterBy) {
+          case 'active':
+            return status === 'active' || status === 'en-route' || status === 'boarding'
+          case 'scheduled':
+            return status === 'scheduled' || status === 'on time'
+          case 'landed':
+            return status === 'landed' || status === 'arrived'
+          default:
+            return true
+        }
+      })
+    }
+
+    // Apply sort
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'price':
+          return (a.price || 0) - (b.price || 0)
+        case 'duration':
+          return a.duration.localeCompare(b.duration)
+        case 'status':
+          return (a.status || '').localeCompare(b.status || '')
+        case 'time':
+        default:
+          const timeA = a.departure?.time || a.arrival?.time || ''
+          const timeB = b.departure?.time || b.arrival?.time || ''
+          return timeA.localeCompare(timeB)
+      }
+    })
+  }, [flights, sortBy, filterBy])
+
+  if (isLoading) {
+    return (
+      <Card className="w-full">
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader className="h-8 w-8 animate-spin text-blue-600" />
+            <p className="text-lg font-medium">Searching for flights...</p>
+            <p className="text-sm text-gray-500">Getting real-time data from multiple sources</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full">
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500" />
+            <div>
+              <h3 className="text-lg font-semibold text-red-700">Search Error</h3>
+              <p className="text-sm text-gray-600 mt-1">{error}</p>
+            </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (flights.length === 0) {
+    return (
+      <Card className="w-full">
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <Plane className="h-12 w-12 text-gray-400" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-700">No Flights Found</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Try adjusting your search criteria or check back later for new flights
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Results Header with Controls */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <CardTitle className="text-xl">Flight Results</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Found {processedFlights.length} flights{flights.length !== processedFlights.length && ` (${flights.length} total)`}
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={filterBy} onValueChange={(value) => setFilterBy(value as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Flights</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="landed">Landed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
+                <SelectTrigger className="w-[140px]">
+                  <SortAsc className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="time">Time</SelectItem>
+                  <SelectItem value="price">Price</SelectItem>
+                  <SelectItem value="duration">Duration</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Flight Cards */}
+      <div className="space-y-4">
+        {processedFlights.map((flight, index) => (
+          <FlightCard key={flight.id || index} flight={flight} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function getStatusColor(status: string) {
+  switch (status?.toLowerCase()) {
+    case "active":
+    case "en-route":
+    case "boarding":
+      return "text-green-700 bg-green-100 border-green-200"
+    case "landed":
+    case "arrived":
+      return "text-blue-700 bg-blue-100 border-blue-200"
+    case "scheduled":
+    case "on time":
+      return "text-gray-700 bg-gray-100 border-gray-200"
+    case "cancelled":
+      return "text-red-700 bg-red-100 border-red-200"
+    case "delayed":
+      return "text-orange-700 bg-orange-100 border-orange-200"
+    default:
+      return "text-gray-600 bg-gray-50 border-gray-200"
+  }
+}
+
+function getStatusIcon(status: string) {
+  switch (status?.toLowerCase()) {
+    case "active":
+    case "en-route":
+    case "boarding":
+      return <Plane className="h-4 w-4" />
+    case "landed":
+    case "arrived":
+      return <CheckCircle className="h-4 w-4" />
+    case "cancelled":
+      return <XCircle className="h-4 w-4" />
+    case "delayed":
+      return <AlertCircle className="h-4 w-4" />
+    case "scheduled":
+    case "on time":
+    default:
+      return <Clock className="h-4 w-4" />
+  }
+}
+
+function formatAltitude(altitude: number | null) {
+  if (!altitude) return "Unknown"
+  return `${Math.round(altitude * 3.28084).toLocaleString()} ft`
+}
+
+function formatSpeed(speed: number | null) {
+  if (!speed) return "Unknown"
+  return `${Math.round(speed * 1.94384)} kts`
+}
+
+function FlightCard({ flight }: { flight: Flight }) {
+  const statusColor = getStatusColor(flight.status || "")
+  const statusIcon = getStatusIcon(flight.status || "")
+  const isActive = flight.status?.toLowerCase() === "active" || flight.status?.toLowerCase() === "en-route"
+
+  return (
+    <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
+      <CardContent className="p-6">
+        {/* Flight Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start mb-4">
+          <div className="flex items-center space-x-3 mb-2 md:mb-0">
+            <div className="flex items-center space-x-2">
+              <Plane className="h-5 w-5 text-blue-600" />
+              <span className="font-bold text-lg">{flight.flightNumber}</span>
+            </div>
+            <div className="text-sm text-gray-600">
+              {flight.airline}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${statusColor}`}>
+              {statusIcon}
+              {flight.status || 'Unknown'}
+            </div>
+            {flight.price && (
+              <div className="flex items-center text-green-600 font-semibold">
+                <DollarSign className="h-4 w-4" />
+                {flight.price}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Route Information */}
+        {(flight.departure || flight.arrival) && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-4 p-4 bg-gray-50 rounded-lg">
+            {/* Departure */}
+            {flight.departure && (
+              <div className="text-center md:text-left">
+                <div className="text-2xl font-bold text-gray-900">
+                  {flight.departure.time}
+                </div>
+                <div className="text-sm font-medium text-gray-700">
+                  {flight.departure.airport}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {flight.departure.city && `${flight.departure.city}, `}
+                  {flight.departure.country}
+                </div>
+                {flight.departure.gate && (
+                  <div className="text-xs text-blue-600 mt-1">
+                    Gate {flight.departure.gate}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Flight Path */}
+            <div className="flex items-center justify-center">
+              <div className="flex items-center space-x-2 text-gray-400">
+                <div className="w-8 h-px bg-gray-300"></div>
+                <ArrowRight className="h-4 w-4" />
+                <div className="w-8 h-px bg-gray-300"></div>
+              </div>
+              {flight.duration && (
+                <div className="absolute text-xs text-gray-600 bg-white px-2 py-1 rounded border">
+                  {flight.duration}
+                </div>
+              )}
+            </div>
+
+            {/* Arrival */}
+            {flight.arrival && (
+              <div className="text-center md:text-right">
+                <div className="text-2xl font-bold text-gray-900">
+                  {flight.arrival.time}
+                </div>
+                <div className="text-sm font-medium text-gray-700">
+                  {flight.arrival.airport}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {flight.arrival.city && `${flight.arrival.city}, `}
+                  {flight.arrival.country}
+                </div>
+                {flight.arrival.gate && (
+                  <div className="text-xs text-blue-600 mt-1">
+                    Gate {flight.arrival.gate}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Additional Flight Details */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          {flight.aircraft && (
+            <div className="flex items-center space-x-2">
+              <Plane className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-600">Aircraft:</span>
+              <span className="font-medium">{flight.aircraft}</span>
+            </div>
+          )}
+          
+          {flight.gate && (
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-600">Gate:</span>
+              <span className="font-medium">{flight.gate}</span>
+            </div>
+          )}
+          
+          {flight.duration && (
+            <div className="flex items-center space-x-2">
+              <Clock className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-600">Duration:</span>
+              <span className="font-medium">{flight.duration}</span>
+            </div>
+          )}
+
+          {flight.source && (
+            <div className="flex items-center space-x-2">
+              {flight.source.includes('real') ? (
+                <Wifi className="h-4 w-4 text-green-500" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-orange-500" />
+              )}
+              <span className="text-gray-600">Source:</span>
+              <span className="font-medium text-xs">{flight.source}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Real-time Data Indicator */}
+        {isActive && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-green-700">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium">Live tracking enabled</span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+            <Plane className={`h-5 w-5 ${isActive ? "text-green-600" : "text-gray-600"}`} />
+            <span>{flight.callsign || flight.flight_iata || "Unknown Flight"}</span>
+          </CardTitle>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+            {flight.status || "Unknown"}
+          </span>
+        </div>
+        {flight.airline && (
+          <p className="text-sm text-gray-600">
+            {typeof flight.airline === 'string' ? flight.airline : flight.airline.name}
+          </p>
+        )}
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {/* Route Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium">Origin</span>
+            </div>
+            <div className="ml-6">
+              <p className="font-medium">{flight.origin_iata || "Unknown"}</p>
+              {flight.origin_airport && (
+                <p className="text-sm text-gray-600">{flight.origin_airport}</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Navigation className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium">Destination</span>
+            </div>
+            <div className="ml-6">
+              <p className="font-medium">{flight.destination_iata || "Unknown"}</p>
+              {flight.destination_airport && (
+                <p className="text-sm text-gray-600">{flight.destination_airport}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Flight Times */}
+        {(flight.departure_scheduled || flight.arrival_scheduled) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {flight.departure_scheduled && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium">Departure</span>
+                </div>
+                <div className="ml-6">
+                  <p className="font-medium">
+                    {new Date(flight.departure_scheduled).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {new Date(flight.departure_scheduled).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {flight.arrival_scheduled && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium">Arrival</span>
+                </div>
+                <div className="ml-6">
+                  <p className="font-medium">
+                    {new Date(flight.arrival_scheduled).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {new Date(flight.arrival_scheduled).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Live Tracking Data (if available) */}
+        {isActive && (flight.latitude || flight.longitude || flight.altitude || flight.velocity) && (
+          <div className="border-t pt-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Wifi className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-600">Live Tracking</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              {flight.altitude && (
+                <div>
+                  <p className="text-gray-500">Altitude</p>
+                  <p className="font-medium">{formatAltitude(flight.altitude)}</p>
+                </div>
+              )}
+              {flight.velocity && (
+                <div>
+                  <p className="text-gray-500">Speed</p>
+                  <p className="font-medium">{formatSpeed(flight.velocity)}</p>
+                </div>
+              )}
+              {flight.latitude && (
+                <div>
+                  <p className="text-gray-500">Latitude</p>
+                  <p className="font-medium">{flight.latitude.toFixed(3)}°</p>
+                </div>
+              )}
+              {flight.longitude && (
+                <div>
+                  <p className="text-gray-500">Longitude</p>
+                  <p className="font-medium">{flight.longitude.toFixed(3)}°</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Aircraft Information */}
+        {flight.aircraft_type && (
+          <div className="border-t pt-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Aircraft</p>
+              <p className="text-sm text-gray-600">{flight.aircraft_type}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Last Update */}
+        {flight.last_updated && (
+          <div className="text-xs text-gray-500 flex items-center space-x-1">
+            <WifiOff className="h-3 w-3" />
+            <span>
+              Last updated {formatDistance(new Date(flight.last_updated), new Date(), { addSuffix: true })}
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function FlightResults({ flights, isLoading, error }: FlightResultsProps) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
+            <p className="text-gray-600">Searching for flights...</p>
+            <p className="text-sm text-gray-500">This may take a few moments as we check multiple sources</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <div className="rounded-full bg-red-100 p-3 w-16 h-16 flex items-center justify-center mx-auto">
+              <WifiOff className="h-8 w-8 text-red-600" />
+            </div>
+            <div>
+              <p className="text-lg font-medium text-gray-900">Search Error</p>
+              <p className="text-gray-600 max-w-md">{error}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (flights.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center space-y-4">
+            <div className="rounded-full bg-gray-100 p-3 w-16 h-16 flex items-center justify-center mx-auto">
+              <Plane className="h-8 w-8 text-gray-600" />
+            </div>
+            <div>
+              <p className="text-lg font-medium text-gray-900">No Flights Found</p>
+              <p className="text-gray-600 max-w-md">
+                Try adjusting your search criteria or check back later. Flight data varies by time and availability.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">
+          Flight Results ({flights.length} found)
+        </h2>
+        <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <Wifi className="h-4 w-4 text-green-600" />
+          <span>Live data when available</span>
+        </div>
+      </div>
+      
+      <div className="grid gap-6">
+        {flights.map((flight, index) => (
+          <FlightCard key={`${flight.callsign}-${flight.flight_iata}-${index}`} flight={flight} />
+        ))}
+      </div>
+    </div>
+  )
+}

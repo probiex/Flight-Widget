@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlightTracker Pro - Your Ultimate Flight Search Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo">
+                <i class="fas fa-plane"></i>
+                <h1>FlightTracker Pro</h1>
+            </div>
+            <p class="tagline">Your Ultimate Flight Search & Information Tool</p>
+        </header>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-container">
+                <h2><i class="fas fa-search"></i> Search Flights</h2>
+                
+                <div class="search-tabs">
+                    <button class="tab-btn active" data-tab="route">Route Search</button>
+                    <button class="tab-btn" data-tab="airline">Airline Search</button>
+                    <button class="tab-btn" data-tab="airport">Airport Info</button>
+                </div>
+
+                <!-- Route Search Tab -->
+                <div class="tab-content active" id="route-tab">
+                    <div class="search-form">
+                        <div class="form-group">
+                            <label for="departure">Departure</label>
+                            <input type="text" id="departure" placeholder="e.g., JFK, New York, NYC">
+                            <div class="suggestions" id="departure-suggestions"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="arrival">Destination</label>
+                            <input type="text" id="arrival" placeholder="e.g., LAX, Los Angeles, LA">
+                            <div class="suggestions" id="arrival-suggestions"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="date">Date</label>
+                            <input type="date" id="date">
+                        </div>
+                        
+                        <button class="search-btn" onclick="searchFlights()">
+                            <i class="fas fa-search"></i> Search Flights
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Airline Search Tab -->
+                <div class="tab-content" id="airline-tab">
+                    <div class="search-form">
+                        <div class="form-group">
+                            <label for="airline">Airline</label>
+                            <select id="airline">
+                                <option value="">Select an airline...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="airline-date">Date</label>
+                            <input type="date" id="airline-date">
+                        </div>
+                        
+                        <button class="search-btn" onclick="searchByAirline()">
+                            <i class="fas fa-plane"></i> View Airline Flights
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Airport Info Tab -->
+                <div class="tab-content" id="airport-tab">
+                    <div class="search-form">
+                        <div class="form-group">
+                            <label for="airport">Airport</label>
+                            <input type="text" id="airport" placeholder="e.g., JFK, Heathrow, CDG">
+                            <div class="suggestions" id="airport-suggestions"></div>
+                        </div>
+                        
+                        <button class="search-btn" onclick="getAirportInfo()">
+                            <i class="fas fa-info-circle"></i> Get Airport Info
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <div class="loading" id="loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Searching flights...</p>
+            </div>
+
+            <!-- Flight Results -->
+            <div class="flight-results" id="flight-results" style="display: none;">
+                <h3><i class="fas fa-list"></i> Flight Results</h3>
+                <div class="results-header">
+                    <span class="result-count" id="result-count"></span>
+                    <div class="sort-options">
+                        <label>Sort by:</label>
+                        <select id="sort-by" onchange="sortResults()">
+                            <option value="time">Departure Time</option>
+                            <option value="price">Price (Low to High)</option>
+                            <option value="duration">Duration</option>
+                            <option value="airline">Airline</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flights-container" id="flights-container"></div>
+            </div>
+
+            <!-- Airport Info Results -->
+            <div class="airport-info" id="airport-info" style="display: none;">
+                <h3><i class="fas fa-map-marker-alt"></i> Airport Information</h3>
+                <div class="airport-details" id="airport-details"></div>
+                <div class="airport-departures" id="airport-departures">
+                    <h4><i class="fas fa-plane-departure"></i> Live Departures</h4>
+                    <div class="departures-board" id="departures-board"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <div class="data-sources">
+                <h4><i class="fas fa-database"></i> Data Sources</h4>
+                <div class="sources-grid">
+                    <div class="source-item">
+                        <strong>Airport Data:</strong> OpenFlights Database & GitHub Airport Codes
+                    </div>
+                    <div class="source-item">
+                        <strong>Airline Data:</strong> OpenFlights Airlines Database
+                    </div>
+                    <div class="source-item">
+                        <strong>Real-time Flights:</strong> OpenSky Network API (Free Tier)
+                    </div>
+                    <div class="source-item">
+                        <strong>Backup Data:</strong> Enhanced simulation with realistic patterns
+                    </div>
+                </div>
+                <p class="api-note">
+                    <i class="fas fa-info-circle"></i> 
+                    This app uses free APIs and simulated data. For booking actual flights, please use official airline websites.
+                </p>
+            </div>
+            
+            <p>&copy; 2025 FlightTracker Pro - Your trusted flight companion</p>
+            <div class="footer-links">
+                <span><i class="fas fa-globe"></i> Free flight data</span>
+                <span><i class="fas fa-clock"></i> Real-time updates</span>
+                <span><i class="fas fa-shield-alt"></i> Reliable service</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
