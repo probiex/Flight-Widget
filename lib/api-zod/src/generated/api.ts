@@ -100,33 +100,11 @@ export const ListAirlinesResponse = zod.object({
 
 
 /**
- * @summary Get current weather for airport coordinates
+ * Always returns 410. Use /airports/{code}/conditions for NOAA aviation weather.
+ * @deprecated
+ * @summary Retired non-commercial weather endpoint; use airport conditions
  */
-export const getAirportWeatherQueryLatitudeMin = -90;
-export const getAirportWeatherQueryLatitudeMax = 90;
-
-export const getAirportWeatherQueryLongitudeMin = -180;
-export const getAirportWeatherQueryLongitudeMax = 180;
-
-
-
-export const GetAirportWeatherQueryParams = zod.object({
-  "latitude": zod.coerce.number().min(getAirportWeatherQueryLatitudeMin).max(getAirportWeatherQueryLatitudeMax),
-  "longitude": zod.coerce.number().min(getAirportWeatherQueryLongitudeMin).max(getAirportWeatherQueryLongitudeMax),
-  "timezone": zod.coerce.string().optional()
-})
-
-export const GetAirportWeatherResponse = zod.object({
-  "temperatureC": zod.number(),
-  "feelsLikeC": zod.number(),
-  "humidityPercent": zod.number().int(),
-  "precipitationMm": zod.number(),
-  "weatherCode": zod.number().int(),
-  "windSpeedKmh": zod.number(),
-  "timezone": zod.string(),
-  "fetchedAt": zod.coerce.date(),
-  "source": zod.string()
-})
+export const GetAirportWeatherResponse = zod.void()
 
 
 /**
@@ -170,6 +148,149 @@ export const SearchFlightsResponse = zod.object({
   "source": zod.string(),
   "fetchedAt": zod.coerce.date(),
   "attribution": zod.string()
+})
+
+
+/**
+ * @summary Airport infrastructure and official links
+ */
+export const getAirportResourcesPathCodeRegExp = new RegExp('^[A-Za-z]{3}$');
+
+
+export const GetAirportResourcesParams = zod.object({
+  "code": zod.coerce.string().regex(getAirportResourcesPathCodeRegExp)
+})
+
+export const GetAirportResourcesResponse = zod.object({
+  "airportCode": zod.string(),
+  "countryName": zod.string().nullish(),
+  "officialWebsite": zod.string().nullish(),
+  "wikipediaUrl": zod.string().nullish(),
+  "mapUrl": zod.string(),
+  "source": zod.string(),
+  "fetchedAt": zod.coerce.date(),
+  "warnings": zod.array(zod.string()),
+  "runways": zod.array(zod.object({
+  "ident": zod.string(),
+  "lengthFt": zod.number().nullish(),
+  "widthFt": zod.number().nullish(),
+  "surface": zod.string().nullish(),
+  "lighted": zod.boolean(),
+  "closed": zod.boolean()
+})),
+  "frequencies": zod.array(zod.object({
+  "type": zod.string(),
+  "description": zod.string(),
+  "mhz": zod.number()
+})),
+  "navaids": zod.array(zod.object({
+  "ident": zod.string(),
+  "name": zod.string(),
+  "type": zod.string(),
+  "frequencyKhz": zod.number().nullish()
+}))
+})
+
+
+/**
+ * @summary Aviation weather and US alerts
+ */
+export const getAirportConditionsPathCodeRegExp = new RegExp('^[A-Za-z]{3}$');
+
+
+export const GetAirportConditionsParams = zod.object({
+  "code": zod.coerce.string().regex(getAirportConditionsPathCodeRegExp)
+})
+
+export const GetAirportConditionsResponse = zod.object({
+  "station": zod.string().nullable(),
+  "fetchedAt": zod.coerce.date(),
+  "source": zod.string(),
+  "metarStatus": zod.string(),
+  "tafStatus": zod.string(),
+  "alertsStatus": zod.string(),
+  "warnings": zod.array(zod.string()),
+  "metar": zod.object({
+  "raw": zod.string(),
+  "observedAt": zod.string().nullish(),
+  "temperatureC": zod.number().nullish(),
+  "dewpointC": zod.number().nullish(),
+  "windKnots": zod.number().nullish(),
+  "windDirection": zod.string().nullish(),
+  "visibilityMiles": zod.string().nullish(),
+  "pressureHpa": zod.number().nullish(),
+  "category": zod.string().nullish()
+}).nullish(),
+  "taf": zod.object({
+  "raw": zod.string(),
+  "issuedAt": zod.string().nullish(),
+  "validFrom": zod.string().nullish(),
+  "validTo": zod.string().nullish()
+}).nullish(),
+  "alerts": zod.array(zod.object({
+  "event": zod.string(),
+  "headline": zod.string(),
+  "severity": zod.string(),
+  "description": zod.string(),
+  "expires": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Supported Frankfurter currencies
+ */
+export const ListCurrenciesResponse = zod.object({
+  "currencies": zod.array(zod.object({
+  "code": zod.string(),
+  "name": zod.string()
+})),
+  "source": zod.string(),
+  "fetchedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Reference currency rate, not a retail quote
+ */
+export const getExchangeRateQueryBaseRegExp = new RegExp('^[A-Za-z]{3}$');
+export const getExchangeRateQueryQuoteRegExp = new RegExp('^[A-Za-z]{3}$');
+
+
+export const GetExchangeRateQueryParams = zod.object({
+  "base": zod.coerce.string().regex(getExchangeRateQueryBaseRegExp),
+  "quote": zod.coerce.string().regex(getExchangeRateQueryQuoteRegExp)
+})
+
+export const GetExchangeRateResponse = zod.object({
+  "base": zod.string(),
+  "quote": zod.string(),
+  "rate": zod.number(),
+  "date": zod.string(),
+  "fetchedAt": zod.coerce.date(),
+  "source": zod.string()
+})
+
+
+/**
+ * @summary Reviewed source registry and usage restrictions
+ */
+export const ListDataSourcesResponse = zod.object({
+  "reviewedAt": zod.string(),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "category": zod.string(),
+  "status": zod.enum(['integrated', 'link-only', 'planned', 'restricted']),
+  "commercialUse": zod.string(),
+  "license": zod.string(),
+  "coverage": zod.string(),
+  "usage": zod.string(),
+  "limitations": zod.string(),
+  "url": zod.string(),
+  "termsUrl": zod.string(),
+  "refresh": zod.string()
+}))
 })
 
 

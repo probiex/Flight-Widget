@@ -132,36 +132,12 @@ paths:
     get:
       operationId: getAirportWeather
       tags: [weather]
-      summary: Get current weather for airport coordinates
-      parameters:
-        - name: latitude
-          in: query
-          required: true
-          schema:
-            type: number
-            minimum: -90
-            maximum: 90
-        - name: longitude
-          in: query
-          required: true
-          schema:
-            type: number
-            minimum: -180
-            maximum: 180
-        - name: timezone
-          in: query
-          required: false
-          schema:
-            type: string
+      deprecated: true
+      summary: Retired non-commercial weather endpoint; use airport conditions
+      description: Always returns 410. Use /airports/{code}/conditions for NOAA aviation weather.
       responses:
-        "200":
-          description: Current weather observations
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AirportWeather"
-        "503":
-          description: Weather data is unavailable
+        "410":
+          description: Non-commercial hosted weather retired
           content:
             application/json:
               schema:
@@ -205,8 +181,195 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /airports/{code}/resources:
+    get:
+      operationId: getAirportResources
+      summary: Airport infrastructure and official links
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z]{3}$" } }
+      responses:
+        "200":
+          description: Sourced reference facts, with explicit partial failures
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AirportResources" }
+  /airports/{code}/conditions:
+    get:
+      operationId: getAirportConditions
+      summary: Aviation weather and US alerts
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z]{3}$" } }
+      responses:
+        "200":
+          description: Independent METAR, TAF and alert availability
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AirportConditions" }
+  /currencies:
+    get:
+      operationId: listCurrencies
+      summary: Supported Frankfurter currencies
+      responses:
+        "200":
+          description: Available currency names and codes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [currencies, source, fetchedAt]
+                properties:
+                  currencies:
+                    type: array
+                    items:
+                      type: object
+                      required: [code, name]
+                      properties:
+                        code: { type: string }
+                        name: { type: string }
+                  source: { type: string }
+                  fetchedAt: { type: string, format: date-time }
+  /exchange-rate:
+    get:
+      operationId: getExchangeRate
+      summary: Reference currency rate, not a retail quote
+      parameters:
+        - { name: base, in: query, required: true, schema: { type: string, pattern: "^[A-Za-z]{3}$" } }
+        - { name: quote, in: query, required: true, schema: { type: string, pattern: "^[A-Za-z]{3}$" } }
+      responses:
+        "200":
+          description: Dated blended reference rate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [base, quote, rate, date, fetchedAt, source]
+                properties:
+                  base: { type: string }
+                  quote: { type: string }
+                  rate: { type: number }
+                  date: { type: string }
+                  fetchedAt: { type: string, format: date-time }
+                  source: { type: string }
+  /sources:
+    get:
+      operationId: listDataSources
+      summary: Reviewed source registry and usage restrictions
+      responses:
+        "200":
+          description: Research metadata, not a feed uptime guarantee
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reviewedAt, sources]
+                properties:
+                  reviewedAt: { type: string }
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, category, status, commercialUse, license, coverage, usage, limitations, url, termsUrl, refresh]
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        category: { type: string }
+                        status: { type: string, enum: [integrated, link-only, planned, restricted] }
+                        commercialUse: { type: string }
+                        license: { type: string }
+                        coverage: { type: string }
+                        usage: { type: string }
+                        limitations: { type: string }
+                        url: { type: string }
+                        termsUrl: { type: string }
+                        refresh: { type: string }
 components:
   schemas:
+    AirportResources:
+      type: object
+      required: [airportCode, source, fetchedAt, runways, frequencies, navaids, warnings, mapUrl]
+      properties:
+        airportCode: { type: string }
+        countryName: { type: ["string", "null"] }
+        officialWebsite: { type: ["string", "null"] }
+        wikipediaUrl: { type: ["string", "null"] }
+        mapUrl: { type: string }
+        source: { type: string }
+        fetchedAt: { type: string, format: date-time }
+        warnings: { type: array, items: { type: string } }
+        runways:
+          type: array
+          items:
+            type: object
+            required: [ident, lighted, closed]
+            properties:
+              ident: { type: string }
+              lengthFt: { type: ["number", "null"] }
+              widthFt: { type: ["number", "null"] }
+              surface: { type: ["string", "null"] }
+              lighted: { type: boolean }
+              closed: { type: boolean }
+        frequencies:
+          type: array
+          items:
+            type: object
+            required: [type, description, mhz]
+            properties:
+              type: { type: string }
+              description: { type: string }
+              mhz: { type: number }
+        navaids:
+          type: array
+          items:
+            type: object
+            required: [ident, name, type]
+            properties:
+              ident: { type: string }
+              name: { type: string }
+              type: { type: string }
+              frequencyKhz: { type: ["number", "null"] }
+    AirportConditions:
+      type: object
+      required: [station, fetchedAt, source, metarStatus, tafStatus, alertsStatus, alerts, warnings]
+      properties:
+        station: { type: ["string", "null"] }
+        fetchedAt: { type: string, format: date-time }
+        source: { type: string }
+        metarStatus: { type: string }
+        tafStatus: { type: string }
+        alertsStatus: { type: string }
+        warnings: { type: array, items: { type: string } }
+        metar:
+          type: ["object", "null"]
+          required: [raw]
+          properties:
+            raw: { type: string }
+            observedAt: { type: ["string", "null"] }
+            temperatureC: { type: ["number", "null"] }
+            dewpointC: { type: ["number", "null"] }
+            windKnots: { type: ["number", "null"] }
+            windDirection: { type: ["string", "null"] }
+            visibilityMiles: { type: ["string", "null"] }
+            pressureHpa: { type: ["number", "null"] }
+            category: { type: ["string", "null"] }
+        taf:
+          type: ["object", "null"]
+          required: [raw]
+          properties:
+            raw: { type: string }
+            issuedAt: { type: ["string", "null"] }
+            validFrom: { type: ["string", "null"] }
+            validTo: { type: ["string", "null"] }
+        alerts:
+          type: array
+          items:
+            type: object
+            required: [event, headline, severity, description]
+            properties:
+              event: { type: string }
+              headline: { type: string }
+              severity: { type: string }
+              description: { type: string }
+              expires: { type: ["string", "null"] }
     HealthStatus:
       type: object
       properties:

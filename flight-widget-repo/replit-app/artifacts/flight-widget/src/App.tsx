@@ -1,13 +1,17 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useGetAirport, useGetAirportWeather, useListAirlines, useListAirports, useSearchFlights } from '@workspace/api-client-react';
-import { getGetAirportWeatherQueryKey, getSearchFlightsQueryKey } from '@workspace/api-client-react';
+import { useGetAirport, useListAirlines, useListAirports, useSearchFlights } from '@workspace/api-client-react';
+import { getSearchFlightsQueryKey } from '@workspace/api-client-react';
 import type { Airport, Flight } from '@workspace/api-client-react';
+import { useMeta } from '@/components/common';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
-import { ArrowDownUp, ArrowRight, ArrowUpRight, Building2, ChevronRight, Clock3, CloudSun, Compass, Globe2, MapPin, Plane, Search, Wind, X } from 'lucide-react';
+import SourcesPage from '@/pages/sources';
+import ToolsPage from '@/pages/tools';
+import { ConditionsCard, ResourcesCard, SafetyNotice } from '@/components/airport-reference';
+import { ArrowDownUp, ArrowRight, ArrowUpRight, Building2, ChevronRight, Clock3, Calculator, Compass, Database, Globe2, MapPin, Plane, Search, X } from 'lucide-react';
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 60_000, refetchOnWindowFocus: false } } });
@@ -23,6 +27,8 @@ function Shell({ children }: { children: ReactNode }) {
     { href: '/', label: 'Flight search', icon: Compass },
     { href: '/airports', label: 'Airports', icon: MapPin },
     { href: '/airlines', label: 'Airlines', icon: Plane },
+    { href: '/tools', label: 'Tools', icon: Calculator },
+    { href: '/sources', label: 'Sources', icon: Database },
   ];
   return <div className="grain min-h-[100dvh] bg-background text-foreground">
     <header className="sticky top-0 z-20 border-b border-border/80 bg-background/90 backdrop-blur-md">
@@ -31,10 +37,10 @@ function Shell({ children }: { children: ReactNode }) {
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Plane size={18} strokeWidth={2.4} /></div>
           <span className="font-display text-[21px] font-extrabold tracking-[-.07em]">flightlo<span className="text-accent">.</span></span>
         </Link>
-        <nav aria-label="Main navigation" className="flex items-center gap-1 sm:gap-2">
-          {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-label={label} title={label} data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`} className={`focus-ring flex items-center gap-2 rounded-full px-3 py-3 text-[13px] font-semibold transition-colors sm:px-4 ${location === href || (href !== '/' && location.startsWith(href)) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon size={15} /><span className="hidden sm:inline">{label}</span></Link>)}
+        <nav aria-label="Main navigation" className="flex items-center gap-0 lg:gap-2">
+          {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-label={label} title={label} data-testid={`link-nav-${label.toLowerCase().replace(' ', '-')}`} className={`focus-ring flex items-center gap-2 rounded-full px-2 py-3 text-[13px] font-semibold transition-colors lg:px-4 ${location === href || (href !== '/' && location.startsWith(href)) ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon size={15} /><span className="hidden lg:inline">{label}</span></Link>)}
         </nav>
-        <div className="hidden items-center gap-2 text-[11px] font-medium uppercase tracking-[.14em] text-muted-foreground md:flex"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> Independent travel, clearly</div>
+        <div className="hidden items-center gap-2 text-[11px] font-medium uppercase tracking-[.14em] text-muted-foreground xl:flex"><span className="h-1.5 w-1.5 rounded-full bg-primary" /> Independent travel, clearly</div>
       </div>
     </header>
     <main className="mx-auto max-w-[1280px] px-5 pb-20 pt-8 md:px-10 md:pt-12">{children}</main>
@@ -185,24 +191,10 @@ function EmptySearch({ query }: { query: string }) {
   return <div className="rounded-2xl border border-dashed border-border bg-muted/25 px-5 py-12 text-center"><div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-card text-muted-foreground"><Search size={16} /></div><p className="text-sm font-semibold">No reference match for “{query}”</p><p className="mt-1 text-xs text-muted-foreground">Try another airport name, city or three-letter code.</p></div>;
 }
 
-function WeatherCard({ airport }: { airport: Airport }) {
-  const params = useMemo(() => ({ latitude: airport.latitude, longitude: airport.longitude, ...(airport.timezone ? { timezone: airport.timezone } : {}) }), [airport.latitude, airport.longitude, airport.timezone]);
-  const query = useGetAirportWeather(params, { query: { queryKey: getGetAirportWeatherQueryKey(params), enabled: Number.isFinite(airport.latitude) && Number.isFinite(airport.longitude) } });
-  const weather = query.data;
-  return <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-    <div className="flex items-center justify-between"><div><Eyebrow>At the airport</Eyebrow><h2 className="font-display text-xl font-bold tracking-[-.04em]">Local weather</h2></div><div className="grid h-10 w-10 place-items-center rounded-xl bg-[#e8e8d5] text-primary"><CloudSun size={19} /></div></div>
-    {query.isLoading ? <div className="mt-6 h-[92px] animate-pulse rounded-xl bg-muted" /> : query.isError ? <div className="mt-5"><ProviderUnavailable title={providerErrorTitle(query.error, 'Local weather is unavailable.')} retry={() => query.refetch()} /></div> : weather ? <><div className="mt-5 flex items-end justify-between"><div className="font-display text-[56px] font-bold leading-none tracking-[-.08em]">{Math.round(weather.temperatureC)}<span className="text-[26px]">°C</span></div><div className="pb-1 text-right text-xs text-muted-foreground">Feels like {Math.round(weather.feelsLikeC)}°</div></div><div className="mt-5 grid grid-cols-3 gap-2 border-t border-border pt-4"><Metric icon={<Wind size={13} />} label="Wind" value={`${Math.round(weather.windSpeedKmh)} km/h`} /><Metric icon={<span className="text-[11px]">RH</span>} label="Humidity" value={`${weather.humidityPercent}%`} /><Metric icon={<CloudSun size={13} />} label="Precip." value={`${weather.precipitationMm} mm`} /></div><Attribution source={weather.source} fetchedAt={weather.fetchedAt} /></> : <ProviderUnavailable title="Local weather could not be loaded." retry={() => query.refetch()} />}
-  </section>;
-}
-
-function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return <div><div className="flex items-center gap-1 text-[10px] text-muted-foreground">{icon}{label}</div><div className="mt-1 font-mono text-[12px] font-medium">{value}</div></div>;
-}
-
 function AirportDetail() {
   const params = useParams<{ code: string }>();
   const code = (params.code || '').toUpperCase();
-  useTitle(`${code || 'Airport'} airport details`);
+  useMeta(`${code || 'Airport'} airport details`, `Runways, frequencies, navaids, METAR, TAF and alerts for ${code}. Reference only, not for navigation.`);
   const airportQuery = useGetAirport(code);
   const airport = airportQuery.data;
   const departureParams = useMemo(() => ({ origin: code, date: today() }), [code]);
@@ -215,12 +207,14 @@ function AirportDetail() {
         <div className="relative"><Eyebrow>Airport reference / {airport.type}</Eyebrow><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="font-mono text-[13px] tracking-[.16em] text-[#f0ad8c]">{airport.code}{airport.icao ? ` · ${airport.icao}` : ''}</div><h1 className="mt-2 max-w-[750px] font-display text-[38px] font-extrabold leading-tight tracking-[-.06em] sm:text-[52px]">{airport.name}</h1><p className="mt-2 flex items-center gap-2 text-sm text-[#e5ede6]/75"><MapPin size={14} />{airport.city}, {airport.country}</p></div><div className="flex items-center gap-2 text-xs text-[#e5ede6]/70"><Clock3 size={14} />{airport.timezone || 'Local timezone not listed'}</div></div><div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 border-t border-white/15 pt-4 font-mono text-[10px] text-[#e5ede6]/65"><span>LAT {airport.latitude.toFixed(4)}</span><span>LON {airport.longitude.toFixed(4)}</span><span className="capitalize">{airport.type} airport</span></div></div>
       </section>
       <div className="mt-7 grid gap-5 lg:grid-cols-[.82fr_1.18fr]">
-        <WeatherCard airport={airport} />
+        <ConditionsCard code={airport.code} />
         <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3"><div><Eyebrow>Departure board / Today</Eyebrow><h2 className="font-display text-xl font-bold tracking-[-.04em]">Verified departures</h2><p className="mt-1 text-xs text-muted-foreground">Records reported for {airport.code} by the connected flight provider.</p></div><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><Plane size={18} /></div></div>
           {departuresQuery.isLoading ? <div className="mt-5"><LoadingRows /></div> : departuresQuery.isError ? <div className="mt-5"><ProviderUnavailable title={providerErrorTitle(departuresQuery.error, 'Departure data is unavailable.')} retry={() => departuresQuery.refetch()} /></div> : departuresQuery.data ? <>{departuresQuery.data.flights.length ? <div className="mt-3">{departuresQuery.data.flights.map(flight => <FlightRow key={flight.id} flight={flight} />)}</div> : <div className="mt-5 rounded-xl bg-muted/50 p-4 text-xs leading-5 text-muted-foreground">The provider returned no departure records for this query. This is not confirmation that the airport has no departures.</div>}<Attribution source={departuresQuery.data.source} attribution={departuresQuery.data.attribution} fetchedAt={departuresQuery.data.fetchedAt} /></> : null}
         </section>
       </div>
+      <SafetyNotice />
+      <div className="mt-5"><ResourcesCard code={airport.code} /></div>
       <div className="mt-7 flex items-start gap-3 rounded-xl border border-border/70 bg-muted/25 p-4 text-xs leading-5 text-muted-foreground"><Building2 size={15} className="mt-0.5 shrink-0 text-primary" /><p>Airport facts come from the airport reference provider. Weather and flight operations are separate live sources; values may be delayed or unavailable.</p></div>
     </>}
   </div>;
@@ -252,6 +246,8 @@ function Router() {
     <Route path="/airports" component={AirportDirectory} />
     <Route path="/airports/:code" component={AirportDetail} />
     <Route path="/airlines" component={AirlinesPage} />
+    <Route path="/tools" component={ToolsPage} />
+    <Route path="/sources" component={SourcesPage} />
     <Route component={NotFound} />
   </Switch></Shell></RoutedErrorBoundary>;
 }

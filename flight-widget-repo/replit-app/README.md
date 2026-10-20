@@ -39,14 +39,24 @@ the hosting platform.
 - Airline codes: OpenFlights reference snapshot, cached 24 hours. Its
   published January 2012 age is disclosed prominently; not a current carrier
   operations feed.
-- Weather: Open-Meteo model-based current local conditions, cached ten minutes;
-  not an aviation weather briefing.
+- Aviation weather: NOAA AWC METAR and TAF reports, cached five minutes, with
+  source observation/validity times. Not an approved aviation briefing.
+- US weather alerts: NWS point-based alerts, cached five minutes. Other
+  countries explicitly show unsupported coverage.
+- Airport infrastructure: OurAirports runway, radio, navaid, and country
+  records, cached six hours. Reference only, never navigation or radio guidance.
+- Currency tools: Frankfurter blended reference rates (one-hour cache) and
+  currency list (24-hour cache), with source rate dates and no invented defaults.
 - Flights: Aviationstack, cached five minutes, up to 100 records per lookup.
   Today uses the live endpoint. Historical lookups require provider-plan
   support. Future schedules are not supported by this implementation.
 
 Retrieval timestamps do not imply the source dataset was updated at that time.
 Confirm operational information with the airline or airport.
+
+See `/sources` for the reviewed registry and `docs/FREE_DATA_PLAN.md` for
+source policies and the next integration stages. `/weather` is retired with
+HTTP 410; it no longer calls the non-commercial Open-Meteo service.
 
 ## Not ready for an ad-supported launch
 

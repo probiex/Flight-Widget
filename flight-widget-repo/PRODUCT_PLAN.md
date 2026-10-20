@@ -70,9 +70,14 @@ gates, delays, or amenities to fill gaps in provider coverage.
 | Airport reference | [OurAirports data](https://ourairports.com/data/) | Public-domain reference data; not an operational flight feed and not guaranteed accurate. |
 | Airline reference | [OpenFlights](https://openflights.org/data.php) | The published airline snapshot is dated; show its age and do not describe it as live. Replace it with a current licensed source or remove the directory if it is too stale. |
 | Flight status and schedules | [Aviationstack](https://aviationstack.com/pricing) | Do not use its non-commercial free tier on an ad-supported production site. A key is required; never expose it to the browser. |
-| Airport-area weather | [Open-Meteo](https://open-meteo.com/en/terms) | Free access is non-commercial only. Upgrade or replace it before ads or other commercial use. |
+| Aviation weather | [NOAA Aviation Weather Center](https://aviationweather.gov/data/api/) | Worldwide METAR/TAF where reported, with source timestamps and no navigation/briefing assurances. Open-Meteo was retired because its free hosted tier is non-commercial. |
+| US weather alerts | [NWS API](https://www.weather.gov/documentation/services-web-api) | Point-based US coverage only. Unsupported locations must not appear to have no alerts. |
+| Currency reference | [Frankfurter](https://frankfurter.dev/) | Blended reference rates, not retail quotes; individual provider terms are separate. |
 
 The provider list is a starting point, not a promise of coverage or accuracy.
+The expanded source audit and execution plan is in
+`replit-app/docs/FREE_DATA_PLAN.md`; `/sources` in the app distinguishes actual
+integrations from external links, future work, and restricted providers.
 Where a provider is unavailable or has no matching records, show that state
 explicitly and never synthesize a result.
 

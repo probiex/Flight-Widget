@@ -5,6 +5,110 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AirportResourcesRunwaysItem = {
+  ident: string;
+  /** @nullable */
+  lengthFt?: number | null;
+  /** @nullable */
+  widthFt?: number | null;
+  /** @nullable */
+  surface?: string | null;
+  lighted: boolean;
+  closed: boolean;
+};
+
+export type AirportResourcesFrequenciesItem = {
+  type: string;
+  description: string;
+  mhz: number;
+};
+
+export type AirportResourcesNavaidsItem = {
+  ident: string;
+  name: string;
+  type: string;
+  /** @nullable */
+  frequencyKhz?: number | null;
+};
+
+export interface AirportResources {
+  airportCode: string;
+  /** @nullable */
+  countryName?: string | null;
+  /** @nullable */
+  officialWebsite?: string | null;
+  /** @nullable */
+  wikipediaUrl?: string | null;
+  mapUrl: string;
+  source: string;
+  fetchedAt: string;
+  warnings: string[];
+  runways: AirportResourcesRunwaysItem[];
+  frequencies: AirportResourcesFrequenciesItem[];
+  navaids: AirportResourcesNavaidsItem[];
+}
+
+/**
+ * @nullable
+ */
+export type AirportConditionsMetar = {
+  raw: string;
+  /** @nullable */
+  observedAt?: string | null;
+  /** @nullable */
+  temperatureC?: number | null;
+  /** @nullable */
+  dewpointC?: number | null;
+  /** @nullable */
+  windKnots?: number | null;
+  /** @nullable */
+  windDirection?: string | null;
+  /** @nullable */
+  visibilityMiles?: string | null;
+  /** @nullable */
+  pressureHpa?: number | null;
+  /** @nullable */
+  category?: string | null;
+} | null;
+
+/**
+ * @nullable
+ */
+export type AirportConditionsTaf = {
+  raw: string;
+  /** @nullable */
+  issuedAt?: string | null;
+  /** @nullable */
+  validFrom?: string | null;
+  /** @nullable */
+  validTo?: string | null;
+} | null;
+
+export type AirportConditionsAlertsItem = {
+  event: string;
+  headline: string;
+  severity: string;
+  description: string;
+  /** @nullable */
+  expires?: string | null;
+};
+
+export interface AirportConditions {
+  /** @nullable */
+  station: string | null;
+  fetchedAt: string;
+  source: string;
+  metarStatus: string;
+  tafStatus: string;
+  alertsStatus: string;
+  warnings: string[];
+  /** @nullable */
+  metar?: AirportConditionsMetar;
+  /** @nullable */
+  taf?: AirportConditionsTaf;
+  alerts: AirportConditionsAlertsItem[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -125,20 +229,6 @@ q?: string;
 limit?: number;
 };
 
-export type GetAirportWeatherParams = {
-/**
- * @minimum -90
- * @maximum 90
- */
-latitude: number;
-/**
- * @minimum -180
- * @maximum 180
- */
-longitude: number;
-timezone?: string;
-};
-
 export type SearchFlightsParams = {
 /**
  * @minLength 3
@@ -151,5 +241,66 @@ origin: string;
  */
 destination?: string;
 date?: string;
+};
+
+export type ListCurrencies200CurrenciesItem = {
+  code: string;
+  name: string;
+};
+
+export type ListCurrencies200 = {
+  currencies: ListCurrencies200CurrenciesItem[];
+  source: string;
+  fetchedAt: string;
+};
+
+export type GetExchangeRateParams = {
+/**
+ * @pattern ^[A-Za-z]{3}$
+ */
+base: string;
+/**
+ * @pattern ^[A-Za-z]{3}$
+ */
+quote: string;
+};
+
+export type GetExchangeRate200 = {
+  base: string;
+  quote: string;
+  rate: number;
+  date: string;
+  fetchedAt: string;
+  source: string;
+};
+
+export type ListDataSources200SourcesItemStatus = typeof ListDataSources200SourcesItemStatus[keyof typeof ListDataSources200SourcesItemStatus];
+
+
+export const ListDataSources200SourcesItemStatus = {
+  integrated: 'integrated',
+  'link-only': 'link-only',
+  planned: 'planned',
+  restricted: 'restricted',
+} as const;
+
+export type ListDataSources200SourcesItem = {
+  id: string;
+  name: string;
+  category: string;
+  status: ListDataSources200SourcesItemStatus;
+  commercialUse: string;
+  license: string;
+  coverage: string;
+  usage: string;
+  limitations: string;
+  url: string;
+  termsUrl: string;
+  refresh: string;
+};
+
+export type ListDataSources200 = {
+  reviewedAt: string;
+  sources: ListDataSources200SourcesItem[];
 };
 

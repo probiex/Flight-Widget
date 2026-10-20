@@ -1,10 +1,7 @@
 import { Router, type IRouter } from "express";
 import {
-  ApiError,
   GetAirportParams,
   GetAirportResponse,
-  GetAirportWeatherQueryParams,
-  GetAirportWeatherResponse,
   ListAirlinesQueryParams,
   ListAirlinesResponse,
   ListAirportsQueryParams,
@@ -23,6 +20,9 @@ type AirportRecord = {
   longitude: number;
   timezone: string | null;
   type: string;
+  ident: string;
+  officialWebsite: string | null;
+  wikipediaUrl: string | null;
 };
 
 type AirlineRecord = {
@@ -47,12 +47,10 @@ const AIRLINE_SOURCE =
 const AIRPORT_ATTRIBUTION =
   "Airport reference data: OurAirports. This directory is not an operational flight feed.";
 const AIRLINE_ATTRIBUTION =
-  "OpenFlights airline reference snapshot (published January 2012). Codes and operating status may be outdated; this is not a live carrier directory.";
-const WEATHER_ATTRIBUTION = "Weather: Open-Meteo";
+  "OpenFlights airline reference snapshot (published January 2012), ODbL 1.0 / Database Contents License. Codes and operating status may be outdated. Source and licensing: https://openflights.org/data.php#license";
 const FLIGHT_ATTRIBUTION = "Aviationstack: up to 100 provider records per lookup, not a complete airport schedule. Confirm operational details with the airline.";
 const airportCache: CacheEntry<AirportRecord[]> = { expiresAt: 0 };
 const airlineCache: CacheEntry<AirlineRecord[]> = { expiresAt: 0 };
-const weatherCache = new Map<string, CacheEntry<unknown>>();
 const flightCache = new Map<string, CacheEntry<unknown>>();
 
 function parseCsvLine(line: string): string[] {
@@ -148,6 +146,9 @@ async function getAirports(): Promise<AirportRecord[]> {
         longitude,
         timezone: column(row, "timezone").trim() || null,
         type: column(row, "type").trim() || "airport",
+        ident: column(row, "ident").trim(),
+        officialWebsite: column(row, "home_link").trim() || null,
+        wikipediaUrl: column(row, "wikipedia_link").trim() || null,
       });
     }
 
@@ -287,83 +288,8 @@ router.get("/airlines", async (req, res): Promise<void> => {
 });
 
 router.get("/weather", async (req, res): Promise<void> => {
-  const query = GetAirportWeatherQueryParams.safeParse(req.query);
-  if (!query.success) {
-    res.status(400).json(parseError("Valid latitude and longitude are required."));
-    return;
-  }
-
-  const { latitude, longitude, timezone } = query.data;
-  const cacheKey = `${latitude.toFixed(3)},${longitude.toFixed(3)},${timezone ?? "auto"}`;
-  const entry = weatherCache.get(cacheKey) as CacheEntry<ReturnType<typeof mapWeather>> | undefined;
-  const currentEntry = entry ?? { expiresAt: 0 };
-  if (!entry && weatherCache.size >= 256) weatherCache.delete(weatherCache.keys().next().value!);
-  weatherCache.set(cacheKey, currentEntry);
-
-  try {
-    const weather = await cachedValue(currentEntry, 10 * 60 * 1000, async () => {
-      const params = new URLSearchParams({
-        latitude: String(latitude),
-        longitude: String(longitude),
-        current:
-          "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m",
-        timezone: timezone || "auto",
-      });
-      const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
-        { signal: AbortSignal.timeout(10_000) },
-      );
-      if (!response.ok) throw new Error(`Weather source responded with ${response.status}`);
-      const payload: unknown = await response.json();
-      return mapWeather(payload);
-    });
-    res.json(GetAirportWeatherResponse.parse(weather));
-  } catch (error) {
-    req.log.error({ err: error }, "Weather source unavailable");
-    res.status(503).json(parseError("Current weather is temporarily unavailable."));
-  }
+  res.status(410).json(parseError("The non-commercial Open-Meteo endpoint has been retired. Use /api/airports/{code}/conditions for sourced NOAA aviation weather."));
 });
-
-type OpenMeteoPayload = {
-  current?: {
-    temperature_2m?: number;
-    apparent_temperature?: number;
-    relative_humidity_2m?: number;
-    precipitation?: number;
-    weather_code?: number;
-    wind_speed_10m?: number;
-  };
-  timezone?: string;
-  current_units?: { time?: string };
-};
-
-function mapWeather(input: unknown) {
-  const payload = input as OpenMeteoPayload;
-  const current = payload.current;
-  if (
-    !current ||
-    !Number.isFinite(current.temperature_2m) ||
-    !Number.isFinite(current.apparent_temperature) ||
-    !Number.isFinite(current.relative_humidity_2m) ||
-    !Number.isFinite(current.precipitation) ||
-    !Number.isFinite(current.weather_code) ||
-    !Number.isFinite(current.wind_speed_10m)
-  ) {
-    throw new Error("Weather source returned an incomplete observation");
-  }
-
-  return {
-    temperatureC: current.temperature_2m,
-    feelsLikeC: current.apparent_temperature,
-    humidityPercent: current.relative_humidity_2m,
-    precipitationMm: current.precipitation,
-    weatherCode: current.weather_code,
-    windSpeedKmh: current.wind_speed_10m,
-    timezone: payload.timezone || "UTC",
-    fetchedAt: new Date(),
-    source: "Open-Meteo",
-  };
-}
 
 router.get("/flights", async (req, res): Promise<void> => {
   const query = SearchFlightsQueryParams.safeParse(req.query);
@@ -482,4 +408,5 @@ function mapFlights(input: unknown) {
   }));
 }
 
+export { getAirports, parseCsvLine };
 export default router;

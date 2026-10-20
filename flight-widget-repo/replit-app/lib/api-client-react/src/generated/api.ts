@@ -18,14 +18,18 @@ import type {
 import type {
   AirlineSearchResponse,
   Airport,
+  AirportConditions,
+  AirportResources,
   AirportSearchResponse,
-  AirportWeather,
   ApiError,
   FlightSearchResponse,
-  GetAirportWeatherParams,
+  GetExchangeRate200,
+  GetExchangeRateParams,
   HealthStatus,
   ListAirlinesParams,
   ListAirportsParams,
+  ListCurrencies200,
+  ListDataSources200,
   SearchFlightsParams
 } from './api.schemas';
 
@@ -379,27 +383,22 @@ export function useListAirlines<TData = Awaited<ReturnType<typeof listAirlines>>
 
 
 
-export const getGetAirportWeatherUrl = (params: GetAirportWeatherParams,) => {
-  const normalizedParams = new URLSearchParams();
+export const getGetAirportWeatherUrl = () => {
 
-  Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
 
-  const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/weather?${stringifiedParams}` : `/api/weather`
+  return `/api/weather`
 }
 
 /**
- * @summary Get current weather for airport coordinates
+ * Always returns 410. Use /airports/{code}/conditions for NOAA aviation weather.
+ * @deprecated
+ * @summary Retired non-commercial weather endpoint; use airport conditions
  */
-export const getAirportWeather = async (params: GetAirportWeatherParams, options?: Parameters<typeof customFetch>[1]): Promise<AirportWeather> => {
+export const getAirportWeather = async ( options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<AirportWeather>(getGetAirportWeatherUrl(params),
+  return customFetch<unknown>(getGetAirportWeatherUrl(),
   {
     ...options,
     method: 'GET'
@@ -412,23 +411,23 @@ export const getAirportWeather = async (params: GetAirportWeatherParams, options
 
 
 
-export const getGetAirportWeatherQueryKey = (params?: GetAirportWeatherParams,) => {
+export const getGetAirportWeatherQueryKey = () => {
     return [
-    `/api/weather`, ...(params ? [params] : [])
+    `/api/weather`
     ] as const;
     }
 
 
-export const getGetAirportWeatherQueryOptions = <TData = Awaited<ReturnType<typeof getAirportWeather>>, TError = ErrorType<ApiError>>(params: GetAirportWeatherParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAirportWeatherQueryOptions = <TData = Awaited<ReturnType<typeof getAirportWeather>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAirportWeatherQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getGetAirportWeatherQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAirportWeather>>> = ({ signal }) => getAirportWeather(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAirportWeather>>> = ({ signal }) => getAirportWeather({ signal, ...requestOptions });
 
 
 
@@ -442,15 +441,16 @@ export type GetAirportWeatherQueryError = ErrorType<ApiError>
 
 
 /**
- * @summary Get current weather for airport coordinates
+ * @deprecated
+ * @summary Retired non-commercial weather endpoint; use airport conditions
  */
 
 export function useGetAirportWeather<TData = Awaited<ReturnType<typeof getAirportWeather>>, TError = ErrorType<ApiError>>(
- params: GetAirportWeatherParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAirportWeatherQueryOptions(params,options)
+  const queryOptions = getGetAirportWeatherQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -535,6 +535,398 @@ export function useSearchFlights<TData = Awaited<ReturnType<typeof searchFlights
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getSearchFlightsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAirportResourcesUrl = (code: string,) => {
+
+
+
+
+  return `/api/airports/${code}/resources`
+}
+
+/**
+ * @summary Airport infrastructure and official links
+ */
+export const getAirportResources = async (code: string, options?: Parameters<typeof customFetch>[1]): Promise<AirportResources> => {
+
+  return customFetch<AirportResources>(getGetAirportResourcesUrl(code),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAirportResourcesQueryKey = (code: string,) => {
+    return [
+    `/api/airports/${code}/resources`
+    ] as const;
+    }
+
+
+export const getGetAirportResourcesQueryOptions = <TData = Awaited<ReturnType<typeof getAirportResources>>, TError = ErrorType<unknown>>(code: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportResources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAirportResourcesQueryKey(code);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAirportResources>>> = ({ signal }) => getAirportResources(code, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: code !== null && code !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAirportResources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAirportResourcesQueryResult = NonNullable<Awaited<ReturnType<typeof getAirportResources>>>
+export type GetAirportResourcesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Airport infrastructure and official links
+ */
+
+export function useGetAirportResources<TData = Awaited<ReturnType<typeof getAirportResources>>, TError = ErrorType<unknown>>(
+ code: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportResources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAirportResourcesQueryOptions(code,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAirportConditionsUrl = (code: string,) => {
+
+
+
+
+  return `/api/airports/${code}/conditions`
+}
+
+/**
+ * @summary Aviation weather and US alerts
+ */
+export const getAirportConditions = async (code: string, options?: Parameters<typeof customFetch>[1]): Promise<AirportConditions> => {
+
+  return customFetch<AirportConditions>(getGetAirportConditionsUrl(code),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAirportConditionsQueryKey = (code: string,) => {
+    return [
+    `/api/airports/${code}/conditions`
+    ] as const;
+    }
+
+
+export const getGetAirportConditionsQueryOptions = <TData = Awaited<ReturnType<typeof getAirportConditions>>, TError = ErrorType<unknown>>(code: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportConditions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAirportConditionsQueryKey(code);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAirportConditions>>> = ({ signal }) => getAirportConditions(code, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: code !== null && code !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAirportConditions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAirportConditionsQueryResult = NonNullable<Awaited<ReturnType<typeof getAirportConditions>>>
+export type GetAirportConditionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Aviation weather and US alerts
+ */
+
+export function useGetAirportConditions<TData = Awaited<ReturnType<typeof getAirportConditions>>, TError = ErrorType<unknown>>(
+ code: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAirportConditions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAirportConditionsQueryOptions(code,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCurrenciesUrl = () => {
+
+
+
+
+  return `/api/currencies`
+}
+
+/**
+ * @summary Supported Frankfurter currencies
+ */
+export const listCurrencies = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListCurrencies200> => {
+
+  return customFetch<ListCurrencies200>(getListCurrenciesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCurrenciesQueryKey = () => {
+    return [
+    `/api/currencies`
+    ] as const;
+    }
+
+
+export const getListCurrenciesQueryOptions = <TData = Awaited<ReturnType<typeof listCurrencies>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCurrenciesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCurrencies>>> = ({ signal }) => listCurrencies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCurrencies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCurrenciesQueryResult = NonNullable<Awaited<ReturnType<typeof listCurrencies>>>
+export type ListCurrenciesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Supported Frankfurter currencies
+ */
+
+export function useListCurrencies<TData = Awaited<ReturnType<typeof listCurrencies>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCurrenciesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetExchangeRateUrl = (params: GetExchangeRateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/exchange-rate?${stringifiedParams}` : `/api/exchange-rate`
+}
+
+/**
+ * @summary Reference currency rate, not a retail quote
+ */
+export const getExchangeRate = async (params: GetExchangeRateParams, options?: Parameters<typeof customFetch>[1]): Promise<GetExchangeRate200> => {
+
+  return customFetch<GetExchangeRate200>(getGetExchangeRateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetExchangeRateQueryKey = (params?: GetExchangeRateParams,) => {
+    return [
+    `/api/exchange-rate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetExchangeRateQueryOptions = <TData = Awaited<ReturnType<typeof getExchangeRate>>, TError = ErrorType<unknown>>(params: GetExchangeRateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getExchangeRate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetExchangeRateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getExchangeRate>>> = ({ signal }) => getExchangeRate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getExchangeRate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetExchangeRateQueryResult = NonNullable<Awaited<ReturnType<typeof getExchangeRate>>>
+export type GetExchangeRateQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Reference currency rate, not a retail quote
+ */
+
+export function useGetExchangeRate<TData = Awaited<ReturnType<typeof getExchangeRate>>, TError = ErrorType<unknown>>(
+ params: GetExchangeRateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getExchangeRate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetExchangeRateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDataSourcesUrl = () => {
+
+
+
+
+  return `/api/sources`
+}
+
+/**
+ * @summary Reviewed source registry and usage restrictions
+ */
+export const listDataSources = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListDataSources200> => {
+
+  return customFetch<ListDataSources200>(getListDataSourcesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDataSourcesQueryKey = () => {
+    return [
+    `/api/sources`
+    ] as const;
+    }
+
+
+export const getListDataSourcesQueryOptions = <TData = Awaited<ReturnType<typeof listDataSources>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDataSourcesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDataSources>>> = ({ signal }) => listDataSources({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDataSourcesQueryResult = NonNullable<Awaited<ReturnType<typeof listDataSources>>>
+export type ListDataSourcesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Reviewed source registry and usage restrictions
+ */
+
+export function useListDataSources<TData = Awaited<ReturnType<typeof listDataSources>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDataSources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDataSourcesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
