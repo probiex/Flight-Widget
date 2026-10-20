@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Flightlo — Flight & Airport Guide"
+description = "A real-data flight and airport companion. Search verified airport and airline reference data, view airport-local weather, and access live flight information when an authorized flight-data source is configured. It never substitutes generated flights for unavailable API results."
+version = "1.0.0"
+id = "artifacts/flight-widget"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21297
+
+[services.development]
+run = "pnpm --filter @workspace/flight-widget run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/flight-widget", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/flight-widget/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21297"
+BASE_PATH = "/"
